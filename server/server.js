@@ -6,54 +6,57 @@ import { connectDB } from "./library/db.js";
 import userRouter from "./routes/user.route.js";
 import messageRouter from "./routes/message.route.js";
 import { Server } from "socket.io";
-import { log } from "console";
 
 // create Express app and Http server
 
 const app = express();
 const server = http.createServer(app);
-// initialize socket.io server
 
+// Initialize socket.io server
 export const io = new Server(server, {
-  cors: {
-    origin: "*",
-  },
+  cors: { origin: "*" },
 });
 
-// store online users
+// Store online users
+export const userSocketMap = {}; // { userId: socketId }
 
-export const userSocketMap = {}; // {userid:socketId}
-
-//socket.id connection handler
-
+// Socket.io connection handler
 io.on("connection", (socket) => {
   const userId = socket.handshake.query.userId;
-  console.log("user Connectd", userId);
+  console.log("User Connected", userId);
 
   if (userId) userSocketMap[userId] = socket.id;
-  // emit onl ine users
+
+  // Emit online users to all connected clients
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
+
   socket.on("disconnect", () => {
-    console.log("user disconnected", userId);
+    console.log("User Disconnected", userId);
     delete userSocketMap[userId];
-    io.emit("getonlineUsers", Object.keys(userSocketMap));
+    io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
 
-// Middleware
-
+// Middleware setup
 app.use(express.json({ limit: "4mb" }));
 app.use(cors());
 
+// Routes setup
+app.get("/", (req, res) => {
+  res.send("Welcome to Quick Chat API");
+});
 app.use("/api/status", (req, res) => res.send("Server is live"));
 
 app.use("/api/auth", userRouter);
 app.use("/api/messages", messageRouter);
-// connect to mongodb
 
+// Connect to MongoDB
 await connectDB();
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () =>
   console.log(`Server is running on : http://localhost:${PORT}`)
 );
+
+// Export server for Vercel
+export default server;
