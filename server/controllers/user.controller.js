@@ -1,3 +1,4 @@
+import cloudinary from "../library/cloudinary.js";
 import { generateToken } from "../library/utils.js";
 import { User } from "../models/user.model.js";
 import bcrypt from "bcryptjs";
@@ -70,4 +71,37 @@ export const login = async (req, res) => {
 // to check the user is authenticated
 export const checkAuth = (req, res) => {
   res.json({ success: true, user: req.user });
+};
+
+// controller to update user profile details
+
+export const updateProfile = async (req, res) => {
+  try {
+    const { profilePic, bio, fullName } = req.body;
+
+    const userId = req.user._id;
+    let updatedUser;
+
+    if (!profilePic) {
+      updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { bio, fullName },
+        { new: true }
+      );
+    } else {
+      const upload = await cloudinary.uploader.upload(profilePic);
+      updatedUser = await User.findByIdAndUpdate(
+        userId,
+        {
+          bio,
+          fullName,
+          profilePic: upload.secure_url,
+        },
+        { new: true }
+      );
+    }
+    res.json({ success: true, user: updatedUser });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
 };
