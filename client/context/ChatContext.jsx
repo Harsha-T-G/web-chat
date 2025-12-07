@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { AuthContext } from "./AuthContext";
 import toast from "react-hot-toast";
+
 const ChatContext = createContext();
 
 export const ChatProvider = ({ children }) => {
@@ -56,35 +57,37 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
-  // Function to subscribe to messages for selected user
-  const subscribeToMessages = async () => {
+  // Subscribe to socket "newMessage" events
+  useEffect(() => {
     if (!socket) return;
 
-    socket.on("newMessage", (newMessage) => {
+    const handleNewMessage = (newMessage) => {
+      // If the message is from the currently selected user, append it to the chat
       if (selectedUser && newMessage.senderId === selectedUser._id) {
+        // mark as seen in UI
         newMessage.seen = true;
         setMessages((prevMessages) => [...prevMessages, newMessage]);
-        axios.put(`/api/messages/mark/${newMessage._id}`);
+
+        // update seen status in DB
+        axios
+          .put(`/api/messages/mark/${newMessage._id}`)
+          .catch((error) => toast.error(error.message));
       } else {
+        // Otherwise increase unseen count for that sender
         setUnseenMessages((prevUnseenMessages) => ({
           ...prevUnseenMessages,
-          [newMessage.senderId]: prevUnseenMessages[newMessage.senderId]
-            ? prevUnseenMessages[newMessage.senderId] + 1
-            : 1,
+          [newMessage.senderId]:
+            (prevUnseenMessages[newMessage.senderId] || 0) + 1,
         }));
       }
-    });
-  };
+    };
 
-  // Function to unsbscribe from messages
-  const unsubscribeFromMessages = () => {
-    if (socket) socket.off("newMessage");
-  };
+    socket.on("newMessage", handleNewMessage);
 
-  useEffect(() => {
-    subscribeToMessages();
-    return () => unsubscribeFromMessages();
-  }, [socket, selectedUser]);
+    return () => {
+      socket.off("newMessage", handleNewMessage);
+    };
+  }, [socket, selectedUser, axios]);
 
   const value = {
     messages,
@@ -100,4 +103,5 @@ export const ChatProvider = ({ children }) => {
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
 };
+
 export { ChatContext };
