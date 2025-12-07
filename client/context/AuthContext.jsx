@@ -2,6 +2,7 @@ import { createContext, useEffect, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
+import { useCallback } from "react";
 
 const backendUrl = import.meta.env.VITE_BACKEND_URL;
 axios.defaults.baseURL = backendUrl;
@@ -15,7 +16,7 @@ export const AuthProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
 
   // Check if user is authenticated and if so, set the user data and connect the socket
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const { data } = await axios.get("/api/auth/check");
 
@@ -26,7 +27,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       toast.error(error.message);
     }
-  };
+  }, []);
 
   // Login function to handle user authentication and socket connection
   const login = async (state, credentials) => {
@@ -95,7 +96,7 @@ export const AuthProvider = ({ children }) => {
       axios.defaults.headers.common["token"] = token;
       checkAuth();
     }
-  }, []);
+  }, [token, checkAuth]);
 
   const value = {
     axios,
